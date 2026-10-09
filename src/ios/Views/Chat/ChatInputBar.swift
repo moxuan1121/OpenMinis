@@ -78,7 +78,7 @@ private struct MinisAttachmentLayout<Content: View>: View {
 
     @ViewBuilder var body: some View {
         if #available(iOS 16.0, *) {
-            FlowLayout(hSpacing: hSpacing, vSpacing: vSpacing, alignment: alignment, content: content)
+            FlowLayout(hSpacing: hSpacing, vSpacing: vSpacing, alignment: alignment) { content() }
         } else {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 64, maximum: 64), spacing: hSpacing)],
                       alignment: alignment, spacing: vSpacing, content: content)
@@ -1664,6 +1664,7 @@ struct PastableTextView: UIViewRepresentable {
         return tv
     }
 
+    @available(iOS 16.0, *)
     func sizeThatFits(_ proposal: ProposedViewSize, uiView tv: PastableUITextView, context: Context) -> CGSize? {
         let width = proposal.width ?? UIScreen.main.bounds.width
         // [T-share-url-input-height] UITextView.sizeThatFits returns the

@@ -210,6 +210,10 @@ extension View {
         if #available(iOS 16.0, *) { scrollContentBackground(visibility) }
         else { self }
     }
+    @ViewBuilder func minisScrollIndicators(_ visibility: Visibility) -> some View {
+        if #available(iOS 16.0, *) { scrollIndicators(visibility) }
+        else { self }
+    }
     @ViewBuilder func minisScrollDismissesKeyboard(_ mode: MinisKeyboardDismissMode) -> some View {
         if #available(iOS 16.0, *) { scrollDismissesKeyboard(.interactively) }
         else { self }
@@ -229,6 +233,40 @@ extension View {
     @ViewBuilder func minisDraggable(_ value: String) -> some View {
         if #available(iOS 16.0, *) { draggable(value) }
         else { onDrag { NSItemProvider(object: value as NSString) } }
+    }
+    @ViewBuilder func minisDropDestination(for type: String.Type,
+        action: @escaping ([String], CGPoint) -> Bool, isTargeted: @escaping (Bool) -> Void) -> some View {
+        if #available(iOS 16.0, *) {
+            dropDestination(for: type, action: action, isTargeted: isTargeted)
+        } else {
+            modifier(LegacyStringDropModifier(action: action, targeting: isTargeted))
+        }
+    }
+}
+
+private struct LegacyStringDropModifier: ViewModifier {
+    let action: ([String], CGPoint) -> Bool
+    let targeting: (Bool) -> Void
+    @State private var targeted = false
+    func body(content: Content) -> some View {
+        content.onDrop(of: [UTType.text], isTargeted: $targeted) { providers in
+            let readable = providers.filter { $0.canLoadObject(ofClass: NSString.self) }
+            guard !readable.isEmpty else { return false }
+            Task { @MainActor in
+                var values: [String] = []
+                for provider in readable {
+                    let value: String? = await withCheckedContinuation { continuation in
+                        _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+                            continuation.resume(returning: object as? String)
+                        }
+                    }
+                    if let value { values.append(value) }
+                }
+                if !values.isEmpty { _ = action(values, .zero) }
+            }
+            return true
+        }
+        .onChange(of: targeted, perform: targeting)
     }
 }
 
@@ -305,6 +343,89 @@ struct MinisPhotoItem: Equatable, @unchecked Sendable {
 }
 
 struct MinisPickedVideo: Sendable { let url: URL }
+
+@MainActor
+func minisHostingConfiguration<Content: View>(@ViewBuilder content: () -> Content) -> any UIContentConfiguration {
+    if #available(iOS 16.0, *) {
+        return UIHostingConfiguration(content: content).minSize(width: 0, height: 0).margins(.all, 0)
+    }
+    return LegacyHostingConfiguration(content: AnyView(content()))
+}
+
+private struct LegacyHostingConfiguration: UIContentConfiguration {
+    let content: AnyView
+    func makeContentView() -> UIView & UIContentView { LegacyHostingContentView(configuration: self) }
+    func updated(for state: UIConfigurationState) -> Self { self }
+}
+
+private struct LegacyHostingHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private final class LegacyHostingContentView: UIView, UIContentView {
+    private let host = UIHostingController(rootView: AnyView(EmptyView()))
+    private var measuredHeight: CGFloat = 0
+    var configuration: any UIContentConfiguration {
+        didSet { apply() }
+    }
+    init(configuration: LegacyHostingConfiguration) {
+        self.configuration = configuration
+        super.init(frame: .zero)
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(equalTo: leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+        apply()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    private func apply() {
+        guard let config = configuration as? LegacyHostingConfiguration else { return }
+        host.rootView = AnyView(config.content.fixedSize(horizontal: false, vertical: true)
+            .background(GeometryReader { geometry in
+                Color.clear.preference(key: LegacyHostingHeightKey.self, value: geometry.size.height)
+            })
+            .onPreferenceChange(LegacyHostingHeightKey.self) { [weak self] height in
+                guard let self, abs(measuredHeight - height) > 0.5 else { return }
+                measuredHeight = height
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    invalidateIntrinsicContentSize()
+                    var ancestor = superview
+                    while let view = ancestor {
+                        if let cell = view as? SelfSizingCell { cell.clearCachedHeight() }
+                        if let collection = view as? UICollectionView {
+                            collection.collectionViewLayout.invalidateLayout(); break
+                        }
+                        ancestor = view.superview
+                    }
+                }
+            })
+        invalidateIntrinsicContentSize()
+    }
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: measuredHeight > 0 ? measuredHeight : host.view.intrinsicContentSize.height)
+    }
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            host.willMove(toParent: nil); host.removeFromParent()
+        } else if host.parent == nil {
+            var ancestor: UIResponder? = next
+            while let responder = ancestor {
+                if let parent = responder as? UIViewController {
+                    parent.addChild(host); host.didMove(toParent: parent); break
+                }
+                ancestor = responder.next
+            }
+        }
+    }
+}
 
 private struct LegacyPhotosPicker: UIViewControllerRepresentable {
     let limit: Int

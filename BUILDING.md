@@ -76,7 +76,7 @@ without setting this.
 | Tool | Version / notes |
 |---|---|
 | macOS | Apple Silicon strongly recommended (see the simulator note below) |
-| Xcode | With the iOS SDK; the project targets **iOS 26.2** and **Swift 6.0** |
+| Xcode | Xcode 26.2+ SDK for the newer APIs; this fork's app targets **iOS 15.6** and **Swift 6.0** |
 | Metal Toolchain | `xcodebuild -downloadComponent MetalToolchain` — recent Xcode ships it as a separate component |
 | Homebrew packages | `brew install ninja llvm libarchive pkg-config` |
 | Python 3 + Meson | `pip3 install meson` |

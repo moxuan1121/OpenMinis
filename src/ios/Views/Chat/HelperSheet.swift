@@ -56,7 +56,7 @@ struct HelperTranscriptSheetStyle: ViewModifier {
 
     func body(content: Content) -> some View {
         let base = content
-            .minisMinisPresentationDetents(Self.detents, selection: $detent)
+            .minisPresentationDetents(Self.detents, selection: $detent)
             .minisPresentationDragIndicator(.visible)
             .interactiveDismissDisabled()
         if #available(iOS 16.4, *) {

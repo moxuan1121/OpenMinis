@@ -1,5 +1,26 @@
 # OpenMinis
 
+## iOS 15.6 compatibility fork
+
+This fork's `ios15.6` branch lowers the app and share extension minimum to
+**iOS 15.6**. iOS 16+ keeps the original navigation, photo picker and message
+hosting implementations. iOS 15 uses NavigationView, PHPicker, UIKit sheet
+detents and UIHostingController-backed message cells.
+
+System features retain their actual OS requirements:
+
+- App Intents / automatic Siri Shortcuts and WeatherKit: iOS 16+.
+- Files provider extension: iOS 16+; app-local files, document imports and
+  sharing remain available on iOS 15.
+- Live Activities: iOS 16.2+ on iPhone (iPadOS 17+ on iPad).
+- iCloud sync v2: iOS 17+, as in upstream.
+- iOS 15 sheets use the system medium/large sizes instead of custom heights.
+
+The [iOS build workflow](https://github.com/moxuan1121/OpenMinis/actions/workflows/ios15.yml)
+builds an unsigned device IPA and checks its deployment metadata and weak
+framework links. An unsigned IPA still needs signing or an appropriate
+installation tool. Build success does not replace testing on an iOS 15.6 device.
+
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20Android-lightgrey.svg)](#beta-programme)
 
