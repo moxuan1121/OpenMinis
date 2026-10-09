@@ -7182,6 +7182,17 @@ final class SelectableMarkdownTextView: UITextView, UIGestureRecognizerDelegate 
         }
     }
 
+    // iOS 15 never calls UIViewRepresentable.sizeThatFits. Supply a wrapped
+    // height without letting UITextView's unwrapped intrinsic width expand it.
+    override var intrinsicContentSize: CGSize {
+        if #available(iOS 16.0, *) { return super.intrinsicContentSize }
+        guard bounds.width > 1 else {
+            return CGSize(width: UIView.noIntrinsicMetric, height: UIView.noIntrinsicMetric)
+        }
+        let size = sizeThatFits(CGSize(width: bounds.width, height: .greatestFiniteMagnitude))
+        return CGSize(width: UIView.noIntrinsicMetric, height: ceil(size.height))
+    }
+
     // MARK: Layout
 
     override func layoutSubviews() {
