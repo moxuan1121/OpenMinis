@@ -470,6 +470,7 @@ private final class LegacyHostingContentView: UIView, UIContentView {
                 guard let self, height.isFinite, height > 0,
                       abs(measuredHeight - height) > 0.5 else { return }
                 measuredHeight = height
+                invalidateIntrinsicContentSize()
                 publishHeight()
             })
         invalidateIntrinsicContentSize()
@@ -477,7 +478,6 @@ private final class LegacyHostingContentView: UIView, UIContentView {
     private func publishHeight() {
         DispatchQueue.main.async { [weak self] in
             guard let self, measuredHeight > 0 else { return }
-            invalidateIntrinsicContentSize()
             var cell: SelfSizingCell?
             var ancestor = superview
             while let view = ancestor {
