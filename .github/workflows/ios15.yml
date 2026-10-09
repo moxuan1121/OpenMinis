@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
+      - name: Check iOS 15 Foundation fallbacks
+        run: python3 scripts/check_ios15_foundation.py
       - name: Install build tools
         run: |
           brew install ninja llvm lld libarchive pkg-config meson
