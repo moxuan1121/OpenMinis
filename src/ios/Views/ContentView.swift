@@ -3230,8 +3230,7 @@ struct ContentView: View {
     /// single contributor to the mangled name, and it is also the chain that
     /// gets instantiated once per visible row.
     private func erasedSessionRow(_ session: ChatSession, group: SidebarGroup) -> AnyView {
-        AnyView(
-            SessionRow(
+        let row = SessionRow(
                 session: session,
                 // [T-ios-ipad-sidebar-running-indicator-stale]
                 // Pass running/suspended as VALUES so a flip
@@ -3267,14 +3266,21 @@ struct ContentView: View {
                     }
                 }
             }
-            .background(
-                Group {
-                    if #available(iOS 16.0, *) {
-                        NavigationLink(value: session.id) { EmptyView() }
-                    }
-                }
-                    .opacity(0)
+        let navigableRow: AnyView
+        if #available(iOS 16.0, *) {
+            navigableRow = AnyView(row.background(
+                NavigationLink(value: session.id) { EmptyView() }.opacity(0)
+            ))
+        } else {
+            // iOS 15 has no value-based links; drive the existing path bridge.
+            navigableRow = AnyView(row
+                .contentShape(Rectangle())
+                .onTapGesture { openSession(session.id) }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { openSession(session.id) }
             )
+        }
+        return AnyView(navigableRow
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
             .listRowBackground(Group {
