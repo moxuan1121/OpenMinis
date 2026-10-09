@@ -14,7 +14,7 @@ struct BrowserSheetView: View {
     private var manager: BrowserUseManager? { pool.activeManager }
 
     var body: some View {
-        NavigationStack {
+        MinisNavigationStack {
             VStack(spacing: 0) {
                 if !isFullscreen {
                     // Tab bar
@@ -166,7 +166,7 @@ struct BrowserSheetView: View {
             }
             .toolbar(isFullscreen ? .hidden : .visible, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     HStack(spacing: 12) {
                         Button {
                             _ = pool.newTab()
@@ -183,7 +183,7 @@ struct BrowserSheetView: View {
                         .disabled(isAgentBusy)
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -502,7 +502,7 @@ struct BrowserDownloadPanelSheet: View {
     let onLocate: (String) -> Void
 
     var body: some View {
-        NavigationStack {
+        MinisNavigationStack {
             Group {
                 let items = center.downloads(for: sessionId)
                     .sorted { $0.startedAt > $1.startedAt }
@@ -551,7 +551,7 @@ struct BrowserDownloadPanelSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .minisPresentationDetents([.medium, .large])
         // Viewing the panel clears the badge; records themselves persist
         // until the user clears them (rows / Clear Completed) — the floating
         // button hides only when the list is actually empty.

@@ -17,7 +17,6 @@ private let copilotOAuthLog = AppLogger(category: "CopilotOAuth")
 /// has already pressed would be too late — so the first thing this sheet does is
 /// state it plainly and require an explicit "I understand" before a single
 /// request goes out.
-@available(iOS 16.0, *)
 struct CopilotDeviceLoginSheet: View {
     let instanceId: String
     var onFinish: (Bool) -> Void
@@ -43,7 +42,7 @@ struct CopilotDeviceLoginSheet: View {
     @State private var loginTask: Task<Void, Never>?
 
     var body: some View {
-        NavigationStack {
+        MinisNavigationStack {
             VStack(spacing: 24) {
                 switch phase {
                 case .consent:

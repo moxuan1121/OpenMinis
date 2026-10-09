@@ -16,7 +16,7 @@ struct SoulSettingsView: View {
     @State private var showEmojiPrompt = false
     @State private var emojiDraft = ""
     @State private var showPhotoPicker = false
-    @State private var photoItem: PhotosPickerItem? = nil
+    @State private var photoItem: MinisPhotoItem? = nil
     @State private var iconError: String? = nil
     @State private var style: String = SoulMetadata.default.style
     @State private var lang: String = SoulMetadata.default.lang
@@ -46,13 +46,13 @@ struct SoulSettingsView: View {
             }
 
             Section(AppLocalized("Identity")) {
-                LabeledContent(AppLocalized("Name")) {
+                MinisLabeledContent(AppLocalized("Name")) {
                     TextField("Minis", text: $name)
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.words)
                         .submitLabel(.done)
                 }
-                LabeledContent(AppLocalized("Style")) {
+                MinisLabeledContent(AppLocalized("Style")) {
                     TextField(AppLocalized("e.g. Warm, direct, opinionated"), text: $style)
                         .multilineTextAlignment(.trailing)
                 }
@@ -111,7 +111,7 @@ struct SoulSettingsView: View {
         .navigationTitle(AppLocalized("Soul"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(AppLocalized("Save")) { save() }
                     .disabled(!isDirty || isBodyOverLimit)
             }
@@ -246,7 +246,7 @@ struct SoulSettingsView: View {
             TextEditor(text: $bodyText)
                 .frame(minHeight: 220)
                 .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
+                .minisScrollContentBackground(.hidden)
             // SwiftUI's TextEditor has no native placeholder. We render
             // a greyed hint on top when the body is empty + not being
             // typed into. allowsHitTesting(false) so taps fall through
@@ -423,7 +423,7 @@ private struct SoulEmojiPickerSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        MinisNavigationStack {
             VStack(spacing: 20) {
                 // Live preview at the size the chat header actually uses, so
                 // the user judges the glyph at its real scale rather than at
@@ -482,10 +482,10 @@ private struct SoulEmojiPickerSheet: View {
             .navigationTitle(AppLocalized("Choose Emoji"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(AppLocalized("Cancel")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(AppLocalized("Set")) {
                         onPick(draft)
                         dismiss()
@@ -494,7 +494,7 @@ private struct SoulEmojiPickerSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(380)])
+        .minisPresentationDetents([.height(380)])
     }
 
     /// Keep at most one emoji, preferring whatever the user just added.
@@ -523,7 +523,7 @@ private struct SoulIconEditing: ViewModifier {
     @Binding var showEmojiPrompt: Bool
     @Binding var emojiDraft: String
     @Binding var showPhotoPicker: Bool
-    @Binding var photoItem: PhotosPickerItem?
+    @Binding var photoItem: MinisPhotoItem?
     @Binding var iconError: String?
 
     func body(content: Content) -> some View {
@@ -535,7 +535,7 @@ private struct SoulIconEditing: ViewModifier {
                     icon = chosen
                 }
             }
-            .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem,
+            .minisPhotosPicker(isPresented: $showPhotoPicker, selection: $photoItem,
                           matching: .images, photoLibrary: .shared())
             // Single-parameter form: the two-parameter `onChange` is iOS 17+,
             // and this target still deploys lower.
@@ -569,9 +569,9 @@ private struct SoulIconEditing: ViewModifier {
     }
 
     /// Load, validate and normalize a picked photo into the stored form.
-    private func applyPickedImage(_ item: PhotosPickerItem) async {
+    private func applyPickedImage(_ item: MinisPhotoItem) async {
         defer { photoItem = nil }
-        guard let data = try? await item.loadTransferable(type: Data.self),
+        guard let data = try? await item.loadData(),
               let image = UIImage(data: data) else {
             await MainActor.run { iconError = AppLocalized("That image couldn't be read.") }
             return

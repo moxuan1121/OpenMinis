@@ -70,7 +70,24 @@ struct SwipeToSendHint: View {
 
 // MARK: - Flow Layout
 
+private struct MinisAttachmentLayout<Content: View>: View {
+    var hSpacing: CGFloat = 8
+    var vSpacing: CGFloat = 8
+    var alignment: HorizontalAlignment = .leading
+    @ViewBuilder let content: () -> Content
+
+    @ViewBuilder var body: some View {
+        if #available(iOS 16.0, *) {
+            FlowLayout(hSpacing: hSpacing, vSpacing: vSpacing, alignment: alignment, content: content)
+        } else {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64, maximum: 64), spacing: hSpacing)],
+                      alignment: alignment, spacing: vSpacing, content: content)
+        }
+    }
+}
+
 /// A custom Layout that arranges subviews in a wrapping horizontal flow.
+@available(iOS 16.0, *)
 private struct FlowLayout: Layout {
     var hSpacing: CGFloat = 8
     var vSpacing: CGFloat = 8
@@ -175,7 +192,7 @@ struct InputAttachmentGridView: View {
     @State private var draggingID: UUID?
 
     var body: some View {
-        FlowLayout(hSpacing: 8, vSpacing: 8) {
+        MinisAttachmentLayout(hSpacing: 8, vSpacing: 8) {
             ForEach(attachments) { attachment in
                 AttachmentChip(attachment: attachment) {
                     onRemove(attachment)
@@ -277,12 +294,12 @@ private struct AttachmentChip: View {
         .onAppear { loadThumbnailIfNeeded() }
         .onTapGesture { showPreview = true }
         .sheet(isPresented: $showPreview) {
-            NavigationStack {
+            MinisNavigationStack {
                 AttachmentPreviewView(url: attachment.cacheURL)
                     .navigationTitle(attachment.fileName)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
+                        ToolbarItem(placement: .navigationBarTrailing) {
                             Button("Done") { showPreview = false }
                         }
                     }
@@ -549,7 +566,7 @@ struct PastedTextChipRow: View {
             .padding(.trailing, 4)
         }
         .sheet(item: $previewEntry) { entry in
-            NavigationStack {
+            MinisNavigationStack {
                 ScrollView {
                     // Read-only by construction: selectable text (copyable),
                     // deliberately NOT a TextEditor.
@@ -568,7 +585,7 @@ struct PastedTextChipRow: View {
                 .navigationTitle("Pasted#\(entry.id) · " + String(format: AppLocalized("%d chars"), entry.charCount))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button(AppLocalized("Done")) { previewEntry = nil }
                     }
                 }
@@ -604,6 +621,7 @@ private struct AttachmentPreviewView: UIViewControllerRepresentable {
 
 // MARK: - Video File Transferable (for PhotosPicker video export)
 
+@available(iOS 16.0, *)
 struct VideoFileTransferable: Transferable {
     let url: URL
 
@@ -734,7 +752,7 @@ struct UserAttachmentList: View {
     }
 
     var body: some View {
-        FlowLayout(hSpacing: UserAttachmentTileMetrics.gap, vSpacing: UserAttachmentTileMetrics.gap, alignment: .trailing) {
+        MinisAttachmentLayout(hSpacing: UserAttachmentTileMetrics.gap, vSpacing: UserAttachmentTileMetrics.gap, alignment: .trailing) {
             ForEach(attachments) { meta in
                 if meta.isImage {
                     AsyncImageTile(meta: meta, tileSize: tileSize) {
@@ -914,7 +932,7 @@ struct QueuedAttachmentPreview: View {
     private let tileSize: CGFloat = UserAttachmentTileMetrics.tile
 
     var body: some View {
-        FlowLayout(hSpacing: UserAttachmentTileMetrics.gap, vSpacing: UserAttachmentTileMetrics.gap, alignment: .trailing) {
+        MinisAttachmentLayout(hSpacing: UserAttachmentTileMetrics.gap, vSpacing: UserAttachmentTileMetrics.gap, alignment: .trailing) {
             ForEach(attachments) { attachment in
                 switch attachment.kind {
                 case .image:

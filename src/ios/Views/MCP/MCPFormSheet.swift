@@ -94,7 +94,7 @@ struct MCPFormSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        MinisNavigationStack {
             Form {
                 Section {
                     TextField(AppLocalized("Server name"), text: $name)
@@ -115,8 +115,8 @@ struct MCPFormSheet: View {
                 }
 
                 Section(AppLocalized("Note (shown to the agent)")) {
-                    TextField(AppLocalized("Optional description"), text: $note, axis: .vertical)
-                        .lineLimit(1...4)
+                    MinisMultilineTextField(AppLocalized("Optional description"), text: $note)
+                        .minisLineLimit(1...4)
                 }
             }
             .navigationTitle(Text(isEditing ? "Edit Server" : "Add Server"))
@@ -125,7 +125,7 @@ struct MCPFormSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppLocalized("Cancel")) { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button {
                             // Defer the side effect to the next runloop tick: on

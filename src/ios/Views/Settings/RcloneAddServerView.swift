@@ -80,7 +80,7 @@ struct RcloneAddServerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        MinisNavigationStack {
             Form {
                 if connectedRemote == nil {
                     typeSection

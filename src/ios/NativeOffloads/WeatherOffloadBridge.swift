@@ -18,6 +18,19 @@ import CoreLocation
         longitude lng: Double,
         completion: @escaping (NSDictionary?, Error?) -> Void
     ) {
+        guard #available(iOS 16.0, *) else {
+            completion(nil, NSError(domain: "MinisWeather", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "WeatherKit requires iOS 16 or later."]))
+            return
+        }
+        fetchSupportedWeather(forLatitude: lat, longitude: lng, completion: completion)
+    }
+
+    @available(iOS 16.0, *)
+    private static func fetchSupportedWeather(
+        forLatitude lat: Double, longitude lng: Double,
+        completion: @escaping (NSDictionary?, Error?) -> Void
+    ) {
         let location = CLLocation(latitude: lat, longitude: lng)
         let service = WeatherService.shared
 
