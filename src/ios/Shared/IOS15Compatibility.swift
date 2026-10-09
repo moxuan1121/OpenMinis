@@ -474,6 +474,7 @@ private final class LegacyHostingContentView: UIView, UIContentView {
                 publishHeight()
             })
         invalidateIntrinsicContentSize()
+        setNeedsLayout()
     }
     private func publishHeight() {
         DispatchQueue.main.async { [weak self] in
