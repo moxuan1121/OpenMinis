@@ -31,7 +31,7 @@ def check(app):
             assert 'cmd LC_LOAD_WEAK_DYLIB' in block, 'Required framework on iOS 15: ' + block
     for bundle in [app, *(app / 'PlugIns').glob('*.appex')]:
         entitlements = plistlib.loads(subprocess.check_output(
-            ['codesign', '-d', '--entitlements', '-', str(bundle)], stderr=subprocess.DEVNULL))
+            ['codesign', '-d', '--entitlements', '-', '--xml', str(bundle)], stderr=subprocess.DEVNULL))
         assert 'group.com.openminis.app' in entitlements.get('com.apple.security.application-groups', []), (
             'App Group entitlement missing', bundle.name)
     print('PASS: iOS 15.6 binary/package compatibility and preserved App Group entitlements')
