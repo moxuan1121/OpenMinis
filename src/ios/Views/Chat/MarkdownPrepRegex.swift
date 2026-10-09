@@ -50,10 +50,11 @@ func normalizeMarkdownListSyntax(_ markdown: String) -> String {
 // ~22% CPU in Instruments — caching the compiled instances drops that to
 // ~execution-only cost. force_try is safe here: these patterns are static
 // literals validated at first use; a regression would be caught immediately.
-private enum MarkdownPrepRegex {
+enum MarkdownPrepRegex {
     // normalizeMarkdownListSyntax
     static let orderedParen = try! NSRegularExpression(pattern: #"^(\s*)(\d+)\)\s+"#)
     static let bulletGlyph = try! NSRegularExpression(pattern: #"^(\s*)[•·●]\s+"#)
+    static let image = try! NSRegularExpression(pattern: #"!\[([^\]]*)\]\(([^)]+)\)"#)
 
 }
 

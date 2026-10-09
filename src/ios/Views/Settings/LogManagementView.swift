@@ -194,8 +194,8 @@ struct LogManagementView: View {
             }
         }
         .toolbar {
-            if !vm.logFiles.isEmpty && tab == "logs" {
-                ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !vm.logFiles.isEmpty && tab == "logs" {
                     Button {
                         showShareSheet = true
                     } label: {
@@ -259,7 +259,7 @@ private struct LogTextView: UIViewRepresentable {
     let text: String
 
     func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView(usingTextLayoutManager: true)
+        let textView = UITextView.minisTextView()
         textView.isEditable = false
         textView.isSelectable = true
         textView.backgroundColor = .clear

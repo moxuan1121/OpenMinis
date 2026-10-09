@@ -131,14 +131,14 @@ enum MinisPresentationDetent: Hashable {
         case .height(let value): return .height(value)
         }
     }
-    var legacy: UISheetPresentationController.Detent {
-        // ponytail: iOS 15 only has medium/large detents; custom heights use
-        // the nearest system size until a custom presentation is required.
+    // ponytail: iOS 15 has medium/large detents; custom heights use the nearest
+    // system size until a custom presentation is required.
+    var isLegacyMedium: Bool {
         switch self {
-        case .medium: return .medium()
-        case .large: return .large()
-        case .fraction(let value): return value <= 0.5 ? .medium() : .large()
-        case .height(let value): return value <= UIScreen.main.bounds.height / 2 ? .medium() : .large()
+        case .medium: return true
+        case .large: return false
+        case .fraction(let value): return value <= 0.5
+        case .height(let value): return value <= UIScreen.main.bounds.height / 2
         }
     }
 }
@@ -168,9 +168,8 @@ private struct LegacySheetConfiguration: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: Controller, context: Context) {
         controller.configure = { sheet in
             if let detents {
-                let mapped = detents.map(\.legacy)
-                let medium = mapped.contains { $0.identifier == .medium }
-                let large = mapped.contains { $0.identifier == .large }
+                let medium = detents.contains { $0.isLegacyMedium }
+                let large = detents.contains { !$0.isLegacyMedium }
                 sheet.detents = (medium ? [.medium()] : []) + (large ? [.large()] : [])
             }
             if let grabber { sheet.prefersGrabberVisible = grabber }
@@ -211,7 +210,7 @@ extension View {
         else { self }
     }
     @ViewBuilder func minisScrollIndicators(_ visibility: Visibility) -> some View {
-        if #available(iOS 16.0, *) { scrollIndicators(visibility) }
+        if #available(iOS 16.0, *) { scrollIndicators(visibility == .hidden ? .hidden : .visible) }
         else { self }
     }
     @ViewBuilder func minisScrollDismissesKeyboard(_ mode: MinisKeyboardDismissMode) -> some View {
@@ -241,6 +240,82 @@ extension View {
         } else {
             modifier(LegacyStringDropModifier(action: action, targeting: isTargeted))
         }
+    }
+    @ViewBuilder func minisOnGeometryChange<T: Equatable>(for type: T.Type,
+        of transform: @escaping (GeometryProxy) -> T, action: @escaping (T) -> Void) -> some View {
+        if #available(iOS 16.0, *) {
+            onGeometryChange(for: type, of: transform, action: action)
+        } else {
+            background(GeometryReader { proxy in
+                let value = transform(proxy)
+                Color.clear.onAppear { action(value) }.onChange(of: value, perform: action)
+            })
+        }
+    }
+    @ViewBuilder func minisToolbar(_ visibility: Visibility, for placement: MinisToolbarPlacement) -> some View {
+        if #available(iOS 16.0, *) { toolbar(visibility, for: .navigationBar) }
+        else { navigationBarHidden(visibility == .hidden) }
+    }
+    @ViewBuilder func minisPersistentSystemOverlays(_ visibility: Visibility) -> some View {
+        if #available(iOS 16.0, *) { persistentSystemOverlays(visibility) }
+        else { self }
+    }
+    @ViewBuilder func minisNavigationSplitViewColumnWidth(min: CGFloat, ideal: CGFloat, max: CGFloat) -> some View {
+        if #available(iOS 16.0, *) { navigationSplitViewColumnWidth(min: min, ideal: ideal, max: max) }
+        else { self }
+    }
+    @ViewBuilder func minisContextMenu<MenuItems: View, Preview: View>(
+        @ViewBuilder menuItems: () -> MenuItems, @ViewBuilder preview: () -> Preview) -> some View {
+        if #available(iOS 16.0, *) { contextMenu(menuItems: menuItems, preview: preview) }
+        else { contextMenu(menuItems: menuItems) }
+    }
+    @ViewBuilder func minisFullWidthSeparator() -> some View {
+        if #available(iOS 16.0, *) { alignmentGuide(.listRowSeparatorLeading) { _ in 0 } }
+        else { self }
+    }
+}
+
+struct MinisAnyShape: Shape {
+    private let makePath: (CGRect) -> Path
+    init<S: Shape>(_ shape: S) { makePath = shape.path(in:) }
+    func path(in rect: CGRect) -> Path { makePath(rect) }
+}
+
+struct MinisUnevenRoundedRectangle: Shape {
+    var topLeadingRadius: CGFloat = 0
+    var bottomLeadingRadius: CGFloat = 0
+    var bottomTrailingRadius: CGFloat = 0
+    var topTrailingRadius: CGFloat = 0
+    var style: RoundedCornerStyle = .continuous
+    func path(in rect: CGRect) -> Path {
+        if #available(iOS 16.0, *) {
+            return UnevenRoundedRectangle(topLeadingRadius: topLeadingRadius, bottomLeadingRadius: bottomLeadingRadius,
+                bottomTrailingRadius: bottomTrailingRadius, topTrailingRadius: topTrailingRadius, style: style).path(in: rect)
+        }
+        var corners: UIRectCorner = []
+        if topLeadingRadius > 0 { corners.insert(.topLeft) }
+        if topTrailingRadius > 0 { corners.insert(.topRight) }
+        if bottomLeadingRadius > 0 { corners.insert(.bottomLeft) }
+        if bottomTrailingRadius > 0 { corners.insert(.bottomRight) }
+        // ponytail: existing shapes use one radius plus square corners;
+        // use individual arcs if different positive radii are added later.
+        let radius = [topLeadingRadius, topTrailingRadius, bottomLeadingRadius, bottomTrailingRadius].max() ?? 0
+        return Path(UIBezierPath(roundedRect: rect, byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)).cgPath)
+    }
+}
+
+extension Color {
+    var minisGradient: AnyShapeStyle {
+        if #available(iOS 16.0, *) { return AnyShapeStyle(gradient) }
+        return AnyShapeStyle(LinearGradient(colors: [self, opacity(0.75)], startPoint: .top, endPoint: .bottom))
+    }
+}
+
+extension UITextView {
+    static func minisTextView() -> UITextView {
+        if #available(iOS 16.0, *) { return UITextView(usingTextLayoutManager: true) }
+        return UITextView(frame: .zero, textContainer: nil)
     }
 }
 
