@@ -10,16 +10,21 @@ detents and UIHostingController-backed message cells.
 System features retain their actual OS requirements:
 
 - App Intents / automatic Siri Shortcuts and WeatherKit: iOS 16+.
-- Files provider extension: iOS 16+; app-local files, document imports and
-  sharing remain available on iOS 15.
+- Files provider extension: iOS 16+; app-local files and document imports remain
+  available on iOS 15. The iOS 15 IPA omits the Files provider and Live Activity
+  extensions, since some installers launch them despite their minimum OS.
 - Live Activities: iOS 16.2+ on iPhone (iPadOS 17+ on iPad).
 - iCloud sync v2: iOS 17+, as in upstream.
 - iOS 15 sheets use the system medium/large sizes instead of custom heights.
 
 The [iOS build workflow](https://github.com/moxuan1121/OpenMinis/actions/workflows/ios15.yml)
-builds an unsigned device IPA and checks its deployment metadata and weak
-framework links. An unsigned IPA still needs signing or an appropriate
-installation tool. Build success does not replace testing on an iOS 15.6 device.
+builds a device IPA with an ad-hoc signature preserving the existing App Group
+entitlements. It checks deployment metadata, weak framework links and packaged
+extensions. Use an appropriate installer or re-sign with a valid provisioning
+profile. Build success does not replace testing on an iOS 15.6 device.
+If signing does not grant App Groups, memory, skills, shared files and private
+configuration use persistent app-local storage. Cross-app sharing still requires
+the real App Group entitlement; the local fallback cannot share an extension's sandbox.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20Android-lightgrey.svg)](#beta-programme)

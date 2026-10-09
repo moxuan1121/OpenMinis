@@ -5,6 +5,17 @@ import Foundation
 enum SharedContainerStore {
     static let appGroupID = "group.com.openminis.app"
 
+    /// Main-app storage remains usable when a signing tool omits App Groups.
+    /// Cross-process transfers still require the real shared container below.
+    static let appStorageContainer: URL = {
+        if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            return container
+        }
+        NSLog("[AppGroup] Shared container unavailable; using persistent app-local storage")
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("MinisLocalContainer", isDirectory: true)
+    }()
+
     private static let pendingShareKey = "pendingShare"
 
     static var sharedDefaults: UserDefaults? {

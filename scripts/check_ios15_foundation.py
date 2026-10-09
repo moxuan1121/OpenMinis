@@ -9,6 +9,11 @@ env = (root / "src/ios/Shared/EnvVarStore.swift").read_text()
 matcher = re.search(r"static let keyRegex = .*?\n.*?static func isValidKey.*?\n    }", env, re.S).group()
 markdown = (root / "src/ios/Views/Chat/MarkdownPrepRegex.swift").read_text()
 image = re.search(r"static let image = .*", markdown).group().removeprefix("static ")
+storage = (root / "src/ios/Shared/SharedContainerStore.swift").read_text()
+container = re.search(r"static let appStorageContainer: URL = \{.*?\n    \}\(\)", storage, re.S).group()
+# Inject only the platform entitlement lookup; execute the actual storage logic.
+container = container.replace(
+    'FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)', 'groupURL')
 source = '''import Foundation
 enum Keys {
 ''' + matcher + '''
@@ -24,6 +29,16 @@ let matches = image.matches(in: text, range: NSRange(text.startIndex..., in: tex
 precondition(matches == ["![图片](minis://image.png)", "![](https://example.com/a.jpg)"])
 precondition(image.numberOfMatches(in: "![unfinished", range: NSRange(location: 0, length: 12)) == 0)
 print("iOS 15 Foundation boundary checks passed")
+'''
+source += 'enum SharedStorage { static let groupURL: URL? = URL(fileURLWithPath: "/shared/container", isDirectory: true)\n' + container + '\n}\n'
+source += 'enum LocalStorage { static let groupURL: URL? = nil\n' + container + '\n}\n'
+source += '''
+precondition(SharedStorage.appStorageContainer == SharedStorage.groupURL!)
+let local = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("MinisLocalContainer", isDirectory: true)
+precondition(LocalStorage.appStorageContainer == local)
+precondition(LocalStorage.appStorageContainer == LocalStorage.appStorageContainer)
+print("App Group present/missing storage checks passed")
 '''
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory) / "check.swift"

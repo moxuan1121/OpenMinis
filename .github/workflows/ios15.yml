@@ -73,19 +73,30 @@ jobs:
           set -o pipefail
           xcodebuild -project src/ios/Minis.xcodeproj -scheme Minis \
             -configuration Release -destination 'generic/platform=iOS' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             build 2>&1 | tee build.log
-      - name: Verify and package unsigned app
+      - name: Verify and package iOS 15 app
         run: |
-          python3 scripts/check_ios15_app.py build/Build/Products/Release-iphoneos/Minis.app
           mkdir -p package/Payload
           cp -R build/Build/Products/Release-iphoneos/Minis.app package/Payload/
+          # Installers may launch an extension even when its minimum OS is newer.
+          # These targets remain in normal builds for their supported systems.
+          rm -rf package/Payload/Minis.app/PlugIns/AgentWidgetExtension.appex \
+            package/Payload/Minis.app/PlugIns/MinisFileProvider.appex
+          for dependency in package/Payload/Minis.app/Frameworks/*.framework package/Payload/Minis.app/Frameworks/*.dylib; do
+            if [ -e "$dependency" ]; then codesign --force --sign - "$dependency"; fi
+          done
+          codesign --force --sign - --entitlements src/ios/ShareExtension/ShareExtension.entitlements \
+            package/Payload/Minis.app/PlugIns/MinisShare.appex
+          codesign --force --sign - --entitlements src/ios/Minis.entitlements package/Payload/Minis.app
+          codesign --verify --deep --strict package/Payload/Minis.app
+          python3 scripts/check_ios15_app.py package/Payload/Minis.app
           cd package
-          zip -qr ../OpenMinis-iOS15.6-unsigned.ipa Payload
+          zip -qr ../OpenMinis-iOS15.6-fixed.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: OpenMinis-iOS15.6-unsigned
-          path: OpenMinis-iOS15.6-unsigned.ipa
+          name: OpenMinis-iOS15.6-fixed
+          path: OpenMinis-iOS15.6-fixed.ipa
       - uses: actions/upload-artifact@v4
         if: always()
         with:

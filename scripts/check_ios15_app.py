@@ -14,6 +14,10 @@ def version(text):
 
 
 def check(app):
+    for extension in (app / 'PlugIns').glob('*.appex'):
+        metadata = plistlib.loads((extension / 'Info.plist').read_bytes())
+        assert version(metadata['MinimumOSVersion']) <= (15, 6, 0), (
+            'Unsupported extension in iOS 15 package', extension.name, metadata['MinimumOSVersion'])
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     assert info['MinimumOSVersion'] == '15.6', info['MinimumOSVersion']
     executable = app / info['CFBundleExecutable']
@@ -25,7 +29,12 @@ def check(app):
     for block in re.split(r'Load command \d+', commands):
         if any('/' + name + '.framework/' in block for name in ['ActivityKit', 'AppIntents', 'WeatherKit']):
             assert 'cmd LC_LOAD_WEAK_DYLIB' in block, 'Required framework on iOS 15: ' + block
-    print('PASS: iOS 15.6 minimum in Info.plist and Mach-O; newer frameworks are optional')
+    for bundle in [app, *(app / 'PlugIns').glob('*.appex')]:
+        entitlements = plistlib.loads(subprocess.check_output(
+            ['codesign', '-d', '--entitlements', '-', str(bundle)], stderr=subprocess.DEVNULL))
+        assert 'group.com.openminis.app' in entitlements.get('com.apple.security.application-groups', []), (
+            'App Group entitlement missing', bundle.name)
+    print('PASS: iOS 15.6 binary/package compatibility and preserved App Group entitlements')
 
 
 if __name__ == '__main__':
