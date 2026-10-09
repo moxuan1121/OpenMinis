@@ -59,6 +59,12 @@ jobs:
             deps/resources
             deps/lame-build
           key: ${{ steps.native.outputs.cache-primary-key }}
+      - uses: actions/cache/restore@v4
+        id: swift
+        with:
+          path: build
+          key: ios15-swift-${{ runner.os }}-26-${{ github.sha }}
+          restore-keys: ios15-swift-${{ runner.os }}-26-
       - name: Build for iOS 15.6
         run: |
           cp src/ios/Configs/ProviderCustomization.xcconfig.example src/ios/Configs/ProviderCustomization.xcconfig
@@ -82,4 +88,11 @@ jobs:
         if: always()
         with:
           name: ios15-build-log
-          path: build.log
+          path: |
+            build.log
+            src/ios/Minis.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+      - uses: actions/cache/save@v4
+        if: always() && !cancelled() && steps.swift.outputs.cache-hit != 'true'
+        with:
+          path: build
+          key: ${{ steps.swift.outputs.cache-primary-key }}
