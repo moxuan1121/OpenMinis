@@ -25,11 +25,17 @@ sizing = sizing.replace("if #available(iOS 16.0, *)", "if false")
 compatibility = (root / "src/ios/Shared/IOS15Compatibility.swift").read_text(encoding="utf-8")
 hosting = compatibility.split("private struct LegacyHostingConfiguration:", 1)[1].split("private struct LegacyPhotosPicker:", 1)[0]
 hosting = "private struct LegacyHostingConfiguration:" + hosting
+# Log UIKit's actual containment chain without changing the bridge's behavior.
+hosting = hosting.replace("var cell: SelfSizingCell?", "var chain: [String] = []; var cell: SelfSizingCell?")
+hosting = hosting.replace("while let view = ancestor {", "while let view = ancestor { chain.append(String(describing: type(of: view)))")
+hosting = hosting.replace("if let collection = view as? UICollectionView {", "if let collection = view as? UICollectionView { NSLog(\"Bridge index: %@\", String(describing: cell.flatMap { collection.indexPath(for: $0) }))")
+hosting = hosting.replace("ancestor = view.superview\n            }", "ancestor = view.superview\n            }; if probeLogs < 20 { NSLog(\"Bridge chain: %@\", chain.joined(separator: \" > \")); probeLogs += 1 }")
 layout = (root / "src/ios/Agent/MessageList/MessageListLayout.swift").read_text(encoding="utf-8")
 # The app's layout and hosting bridge run unchanged. Only unrelated logging,
 # snapshot identities and the cell's cache interface are replaced in this probe.
 swift = '''import UIKit
 import SwiftUI
+var probeLogs = 0
 struct AppLogger {
     init(category: String) {}
     func info(_ message: String) {}
