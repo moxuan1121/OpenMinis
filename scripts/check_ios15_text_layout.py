@@ -70,6 +70,7 @@ final class ProbeTextView: UITextView {
         let hosted = (cell.contentView as? LegacyHostingContentView)
             ?? cell.contentView.subviews.compactMap { $0 as? LegacyHostingContentView }.first!
         let height = hosted.intrinsicContentSize.height
+        NSLog("Layout probe: hosted=%f cached=%f", height, listLayout.cachedHeight(at: 1) ?? -1)
         precondition(height > 0)
         precondition(abs(listLayout.cachedHeight(at: 1)! - height) < 1, "Hosted row grew but the list retained its old height")
         var bottom: CGFloat = 0
@@ -164,13 +165,24 @@ with tempfile.TemporaryDirectory() as directory:
     run("codesign", "--force", "--sign", "-", str(app))
     subprocess.run(["xcrun", "simctl", "uninstall", device, "com.openminis.layoutprobe"], check=False)
     run("xcrun", "simctl", "install", device, str(app))
-    run("xcrun", "simctl", "launch", device, "com.openminis.layoutprobe")
     data = Path(run("xcrun", "simctl", "get_app_container", device, "com.openminis.layoutprobe", "data"))
     report = data / "Documents/result.txt"
-    for _ in range(30):
-        if report.exists():
-            print(report.read_text(encoding="utf-8"))
-            break
-        time.sleep(1)
-    else:
-        raise AssertionError("UIKit text layout probe failed; inspect the simulator crash report")
+    console = folder / "console.log"
+    with console.open("w") as output:
+        process = subprocess.Popen(["xcrun", "simctl", "launch", "--console", device,
+                                    "com.openminis.layoutprobe"], stdout=output, stderr=subprocess.STDOUT)
+        try:
+            for _ in range(60):
+                if report.exists():
+                    print(report.read_text(encoding="utf-8"))
+                    break
+                if process.poll() is not None:
+                    break
+                time.sleep(1)
+            if not report.exists():
+                print(console.read_text(encoding="utf-8", errors="replace"))
+                raise AssertionError("UIKit text layout probe failed; see its console output above")
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=10)
