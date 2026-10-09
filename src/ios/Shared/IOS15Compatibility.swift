@@ -509,8 +509,15 @@ private final class LegacyHostingContentView: UIView, UIContentView {
     }
     override func layoutSubviews() {
         super.layoutSubviews()
-        // The first preference can arrive before UIKit associates the cell
-        // with its index path. Republish once the row has been laid out.
+        // A constrained hosting view may not deliver its first preference.
+        // Measure with the actual row width so the list can leave its estimate.
+        if bounds.width > 0 {
+            let height = host.sizeThatFits(in: CGSize(width: bounds.width, height: .greatestFiniteMagnitude)).height
+            if height.isFinite, height > 0, abs(measuredHeight - height) > 0.5 {
+                measuredHeight = height
+                invalidateIntrinsicContentSize()
+            }
+        }
         publishHeight()
     }
     override func didMoveToWindow() {
