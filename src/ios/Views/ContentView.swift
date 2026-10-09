@@ -3281,6 +3281,9 @@ struct ContentView: View {
             )
         }
         return AnyView(navigableRow
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                SessionDeleteButton(sessionId: session.id, actions: menuActions, role: nil).tint(.red)
+            }
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
             .listRowBackground(Group {
@@ -3519,6 +3522,12 @@ struct ContentView: View {
                                     }
                                 }
                                 .tag(session.id)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    let sid = Self.isNewSessionId(session.id) ? newSessionRealId : session.id
+                                    if let sid {
+                                        SessionDeleteButton(sessionId: sid, actions: menuActions, role: nil).tint(.red)
+                                    }
+                                }
                                 .listRowInsets(EdgeInsets())
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(
@@ -6857,11 +6866,7 @@ private struct SessionContextMenu: View, Equatable {
         } label: {
             Label("Report Content", systemImage: "exclamationmark.bubble")
         }
-        Button(role: .destructive) {
-            actions.send(.delete(key.sid))
-        } label: {
-            Label("Delete", systemImage: "trash")
-        }
+        SessionDeleteButton(sessionId: key.sid, actions: actions)
     }
 
     private var iCloudSyncVisible: Bool {
@@ -6980,6 +6985,18 @@ struct FolderComposedIcon: View {
                 .frame(width: diameter * 0.56, height: diameter * 0.56)
         }
         .frame(width: diameter, height: diameter)
+    }
+}
+
+private struct SessionDeleteButton: View {
+    let sessionId: String
+    let actions: SessionMenuActionChannel
+    var role: ButtonRole? = .destructive
+
+    var body: some View {
+        Button(role: role) { actions.send(.delete(sessionId)) } label: {
+            Label("Delete", systemImage: "trash")
+        }
     }
 }
 

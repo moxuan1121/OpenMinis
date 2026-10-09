@@ -28,6 +28,7 @@ jobs:
         run: |
           python3 scripts/check_ios15_foundation.py
           python3 scripts/check_ios15_navigation.py
+          python3 scripts/check_model_id_edits.py
           python3 scripts/check_ios15_text_layout.py
       - name: Install build tools
         run: |

@@ -447,6 +447,7 @@ private final class LegacyHostingContentView: UIView, UIContentView {
     init(configuration: LegacyHostingConfiguration) {
         self.configuration = configuration
         super.init(frame: .zero)
+        clipsToBounds = true
         host.view.backgroundColor = .clear
         host.view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(host.view)
@@ -466,22 +467,41 @@ private final class LegacyHostingContentView: UIView, UIContentView {
                 Color.clear.preference(key: LegacyHostingHeightKey.self, value: geometry.size.height)
             })
             .onPreferenceChange(LegacyHostingHeightKey.self) { [weak self] height in
-                guard let self, abs(measuredHeight - height) > 0.5 else { return }
+                guard let self, height.isFinite, height > 0,
+                      abs(measuredHeight - height) > 0.5 else { return }
                 measuredHeight = height
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    invalidateIntrinsicContentSize()
-                    var ancestor = superview
-                    while let view = ancestor {
-                        if let cell = view as? SelfSizingCell { cell.clearCachedHeight() }
-                        if let collection = view as? UICollectionView {
-                            collection.collectionViewLayout.invalidateLayout(); break
-                        }
-                        ancestor = view.superview
-                    }
-                }
+                publishHeight()
             })
         invalidateIntrinsicContentSize()
+    }
+    private func publishHeight() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, measuredHeight > 0 else { return }
+            invalidateIntrinsicContentSize()
+            var cell: SelfSizingCell?
+            var ancestor = superview
+            while let view = ancestor {
+                if let found = view as? SelfSizingCell {
+                    cell = found
+                    found.clearCachedHeight()
+                }
+                if let collection = view as? UICollectionView {
+                    // Generic invalidation preserves MessageListLayout's old
+                    // height cache. Commit the full hosted row's height instead.
+                    if let cell, let index = collection.indexPath(for: cell),
+                       let layout = collection.collectionViewLayout as? MessageListLayout {
+                        layout.setCachedHeight(measuredHeight, at: index.item)
+                        if let key = cell.contentKey {
+                            layout.recordMeasuredHeight(forKey: SelfSizingCell.renderQualifiedKey(key, for: cell),
+                                                        height: measuredHeight, boundsWidth: collection.bounds.width)
+                        }
+                    }
+                    collection.collectionViewLayout.invalidateLayout()
+                    break
+                }
+                ancestor = view.superview
+            }
+        }
     }
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: measuredHeight > 0 ? measuredHeight : host.view.intrinsicContentSize.height)
@@ -499,6 +519,7 @@ private final class LegacyHostingContentView: UIView, UIContentView {
                 ancestor = responder.next
             }
         }
+        if window != nil { publishHeight() }
     }
 }
 

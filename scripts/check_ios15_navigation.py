@@ -11,5 +11,8 @@ assert ".contentShape(Rectangle())" in legacy, "The entire session row must acce
 for action in ("onTapGesture", "accessibilityAction"):
     assert re.search(r"\." + action + r"\s*\{\s*openSession\(session.id\)\s*\}", legacy), action
 assert ".accessibilityAddTraits(.isButton)" in legacy
-assert "navigableRow\n            .listRowInsets" in legacy, "Render the interactive row"
+assert "return AnyView(navigableRow" in legacy and ".listRowInsets" in legacy, "Render the interactive row"
+assert ".swipeActions(edge: .trailing, allowsFullSwipe: false)" in legacy
+assert "SessionDeleteButton(sessionId: session.id, actions: menuActions, role: nil).tint(.red)" in legacy
+assert "actions.send(.delete(sessionId))" in source, "Swipe deletion must use the existing confirmation flow"
 print("iOS 15 session-row navigation source checks passed")

@@ -1630,15 +1630,36 @@ final class ProviderConfigStore: ObservableObject {
         return true
     }
 
-    func updateEntry(_ entry: ModelEntry) {
-        guard let idx = config.modelEntries.firstIndex(where: { $0.id == entry.id }) else { return }
+    @discardableResult
+    func updateEntry(_ entry: ModelEntry, replacing originalId: String? = nil) -> Bool {
+        guard let idx = config.modelEntries.firstIndex(where: { $0.id == (originalId ?? entry.id) }),
+              !config.modelEntries.indices.contains(where: { $0 != idx && config.modelEntries[$0].id == entry.id }) else {
+            return false
+        }
+        let previous = config.modelEntries[idx]
         // Stamp userModifiedAt on every UI-driven edit so iCloud merge can resolve
         // same-field conflicts by last-write-wins. This is the single funnel for
         // override edits from ProviderInstanceDetailView.
         var stamped = entry
         stamped.userModifiedAt = Date()
         config.modelEntries[idx] = stamped
+        if previous.id != entry.id {
+            // Keep old references resolvable across repeated ID edits.
+            for (ref, target) in legacyUuidToCompositeKey where target == previous.id {
+                legacyUuidToCompositeKey[ref] = entry.id
+            }
+            legacyUuidToCompositeKey[previous.id] = entry.id
+            legacyUuidToCompositeKey[previous.uuid] = entry.id
+            legacyUuidToCompositeKey.removeValue(forKey: entry.id)
+            normalizeReferences()
+            persistLegacyUuidMap()
+            Self.recordTombstone(in: &config.deletedModelEntries, ids: [previous.id])
+        }
         save()
+        if previous.id != entry.id {
+            Task { await ChatStore.shared.markDirty(recordType: "ProviderModelEntryV3", recordId: previous.id, operation: "delete") }
+        }
+        return true
     }
 
     func removeEntry(_ entryId: String) {
@@ -2441,16 +2462,16 @@ final class ProviderConfigStore: ObservableObject {
 
     // MARK: - [T-provider-entry-composite-key] legacyUuid normalization
 
-    /// Rewrite every group / binding / agent-loop reference that matches a known
-    /// legacyUuid to its composite key, using `legacyUuidToCompositeKey`.
+    /// Rewrite group / binding / agent-loop references using known legacy UUIDs
+    /// and aliases left by custom-model ID edits.
     /// Idempotent. Returns true if anything changed (so caller can persist).
     /// References that don't match any known legacyUuid are LEFT AS-IS — never
     /// dropped — so an out-of-order arrival just normalizes later when the entry
     /// record (and thus its legacyUuid mapping) shows up.
     @discardableResult
     func normalizeReferences() -> Bool {
-        guard !legacyUuidToCompositeKey.isEmpty else { return false }
         let map = legacyUuidToCompositeKey
+        guard !map.isEmpty else { return false }
         var changed = false
 
         func remap(_ ref: String) -> String { map[ref] ?? ref }
@@ -2495,7 +2516,8 @@ final class ProviderConfigStore: ObservableObject {
                 case .directEntry(let mid, let ck):
                     // Prefer composite key; if absent but mid is a known legacy
                     // uuid, fill composite key (keep mid for downgrade).
-                    if ck == nil, let mapped = map[mid] {
+                    let mapped = ck.map { remap($0) } ?? map[mid]
+                    if let mapped, mapped != ck {
                         bChanged = true
                         return .directEntry(modelEntryId: mid, compositeKey: mapped)
                     }

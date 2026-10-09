@@ -140847,6 +140847,20 @@
         }
       }
     },
+    "Model no longer exists. Reopen the model list and try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Model no longer exists. Reopen the model list and try again." }
+        },
+        "zh-Hans" : {
+          "stringUnit" : { "state" : "translated", "value" : "该模型已不存在，请重新打开模型列表后重试。" }
+        },
+        "zh-Hant" : {
+          "stringUnit" : { "state" : "translated", "value" : "該模型已不存在，請重新開啟模型列表後重試。" }
+        }
+      }
+    },
     "Model ID \"%@\" already exists." : {
       "localizations" : {
         "de" : {

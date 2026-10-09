@@ -1421,6 +1421,7 @@ struct ModelEntryDetailSheet: View {
     @State private var showQuickTest: Bool = false
     @State private var showForceThinkingAlert: Bool = false
     @State private var showResetAlert: Bool = false
+    @State private var saveError: String?
 
     var body: some View {
         MinisNavigationStack {
@@ -1436,6 +1437,7 @@ struct ModelEntryDetailSheet: View {
                             // trailing alignment lost the cursor past the row
                             // edge with no horizontal autoscroll.
                             MinisMultilineTextField("model-id", text: $modelId)
+                                .onChange(of: modelId) { _ in saveError = nil }
                                 .font(.system(.body, design: .monospaced))
                                 .multilineTextAlignment(.trailing)
                                 .textInputAutocapitalization(.never)
@@ -1476,6 +1478,10 @@ struct ModelEntryDetailSheet: View {
                                 .foregroundStyle(.orange)
                         }
                     }
+                }
+
+                if let saveError {
+                    Section { Text(saveError).foregroundColor(.red) }
                 }
 
                 if entry.isCustom {
@@ -1606,6 +1612,7 @@ struct ModelEntryDetailSheet: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") { save() }
                         .font(.body.weight(.semibold))
+                        .disabled(entry.isCustom && modelId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .onAppear { loadFromEntry() }
@@ -1767,7 +1774,7 @@ struct ModelEntryDetailSheet: View {
         // it is wire data, not presentation.
         let trimmedName = displayName.trimmingCharacters(in: .whitespaces).isEmpty
             ? "" : displayName
-        let trimmedId = modelId.trimmingCharacters(in: .whitespaces)
+        let trimmedId = modelId.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedMaxTokens = maxTokensText.trimmingCharacters(in: .whitespaces)
         let parsedMaxTokens: Int? = trimmedMaxTokens.isEmpty ? nil : Int(trimmedMaxTokens)
 
@@ -1864,7 +1871,14 @@ struct ModelEntryDetailSheet: View {
             isHidden: isHidden,
             userModifiedAt: newOverrides.isEmpty && !isHidden ? nil : Date()
         )
-        store.updateEntry(updatedEntry)
+        if store.modelEntries.contains(where: { $0.id == updatedEntry.id && $0.id != entry.id }) {
+            saveError = AppLocalized("Model ID \"\(trimmedId)\" already exists.")
+            return
+        }
+        guard store.updateEntry(updatedEntry, replacing: entry.id) else {
+            saveError = AppLocalized("Model no longer exists. Reopen the model list and try again.")
+            return
+        }
         dismiss()
     }
 }
