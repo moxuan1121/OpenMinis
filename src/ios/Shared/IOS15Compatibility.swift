@@ -483,18 +483,19 @@ private final class LegacyHostingContentView: UIView, UIContentView {
             while let view = ancestor {
                 if let found = view as? SelfSizingCell {
                     cell = found
-                    found.clearCachedHeight()
                 }
                 if let collection = view as? UICollectionView {
                     // Generic invalidation preserves MessageListLayout's old
                     // height cache. Commit the full hosted row's height instead.
                     if let cell, let index = collection.indexPath(for: cell),
                        let layout = collection.collectionViewLayout as? MessageListLayout {
-                        layout.setCachedHeight(measuredHeight, at: index.item)
                         if let key = cell.contentKey {
                             layout.recordMeasuredHeight(forKey: SelfSizingCell.renderQualifiedKey(key, for: cell),
                                                         height: measuredHeight, boundsWidth: collection.bounds.width)
                         }
+                        guard abs((layout.cachedHeight(at: index.item) ?? -1) - measuredHeight) > 0.5 else { return }
+                        cell.clearCachedHeight()
+                        layout.setCachedHeight(measuredHeight, at: index.item)
                     }
                     collection.collectionViewLayout.invalidateLayout()
                     break
@@ -505,6 +506,12 @@ private final class LegacyHostingContentView: UIView, UIContentView {
     }
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: measuredHeight > 0 ? measuredHeight : host.view.intrinsicContentSize.height)
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // The first preference can arrive before UIKit associates the cell
+        // with its index path. Republish once the row has been laid out.
+        publishHeight()
     }
     override func didMoveToWindow() {
         super.didMoveToWindow()
