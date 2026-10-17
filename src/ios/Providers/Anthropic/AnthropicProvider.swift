@@ -196,8 +196,12 @@ final class AnthropicProvider: LLMProvider {
     /// for maximum compatibility with third-party proxies and Coding Plan endpoints.
     init(manualToken: String, model: LLMModel = .claudeHaiku45, basePath: String? = nil, appendV1Suffix: Bool = true, customUserAgent: String? = nil) {
         self.model = model
-        self.isClaudeCode = false
-        self.betaHeaders = nil
+        // A pasted Claude subscription token (sk-ant-oat…) is an OAuth credential:
+        // without the Claude Code request profile Anthropic answers 429. Route it
+        // through the same OAuth transport as the sign-in flow.
+        let isOAuthToken = manualToken.hasPrefix("sk-ant-oat")
+        self.isClaudeCode = isOAuthToken
+        self.betaHeaders = isOAuthToken ? ["oauth-2025-04-20"] : nil
         let resolvedBase = appendV1Suffix
             ? stripV1Suffix(basePath ?? "https://api.anthropic.com")
             : (basePath ?? "https://api.anthropic.com")
@@ -205,8 +209,10 @@ final class AnthropicProvider: LLMProvider {
         self.service = AnthropicServiceFactory.service(
             apiKey: manualToken,
             basePath: resolvedBase,
-            betaHeaders: nil,
-            httpClient: DualAuthHTTPClient(customUserAgent: customUserAgent)
+            betaHeaders: isOAuthToken ? ["oauth-2025-04-20"] : nil,
+            httpClient: isOAuthToken
+                ? OAuthHTTPClient(tokenProvider: { manualToken })
+                : DualAuthHTTPClient(customUserAgent: customUserAgent)
         )
     }
 
