@@ -603,3 +603,85 @@ extension View {
             set: { selection.wrappedValue = $0.first }), maxSelectionCount: 1, matching: matching)
     }
 }
+
+// MARK: - Text field alert
+
+extension View {
+    /// `.alert` whose actions contain a `TextField` only renders the field on
+    /// iOS 16+. On iOS 15 SwiftUI drops it silently, so the bound text stays
+    /// empty and the confirm button looks like it does nothing. Fall back to a
+    /// UIAlertController there.
+    @ViewBuilder func minisTextFieldAlert(_ title: String.LocalizationValue,
+                                          isPresented: Binding<Bool>,
+                                          text: Binding<String>,
+                                          placeholder: String.LocalizationValue,
+                                          message: String.LocalizationValue? = nil,
+                                          confirmTitle: String.LocalizationValue,
+                                          autocapitalize: Bool = true,
+                                          onCancel: @escaping () -> Void = {},
+                                          onConfirm: @escaping (String) -> Void) -> some View {
+        if #available(iOS 16.0, *) {
+            alert(AppLocalized(title), isPresented: isPresented) {
+                TextField(AppLocalized(placeholder), text: text)
+                    .textInputAutocapitalization(autocapitalize ? .sentences : .never)
+                    .autocorrectionDisabled(!autocapitalize)
+                Button(AppLocalized("Cancel"), role: .cancel) { onCancel() }
+                Button(AppLocalized(confirmTitle)) { onConfirm(text.wrappedValue) }
+            } message: {
+                if let message { Text(AppLocalized(message)) }
+            }
+        } else {
+            background(LegacyTextFieldAlert(
+                isPresented: isPresented, text: text,
+                title: AppLocalized(title), message: message.map { AppLocalized($0) },
+                placeholder: AppLocalized(placeholder), confirmTitle: AppLocalized(confirmTitle),
+                autocapitalize: autocapitalize, onCancel: onCancel, onConfirm: onConfirm))
+        }
+    }
+}
+
+private struct LegacyTextFieldAlert: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    @Binding var text: String
+    let title: String
+    let message: String?
+    let placeholder: String
+    let confirmTitle: String
+    let autocapitalize: Bool
+    let onCancel: () -> Void
+    let onConfirm: (String) -> Void
+
+    final class Coordinator { weak var alert: UIAlertController? }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIViewController(context: Context) -> UIViewController { UIViewController() }
+
+    func updateUIViewController(_ host: UIViewController, context: Context) {
+        guard isPresented, context.coordinator.alert == nil else { return }
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addTextField { field in
+            field.placeholder = placeholder
+            field.text = text
+            field.clearButtonMode = .whileEditing
+            if !autocapitalize {
+                field.autocapitalizationType = .none
+                field.autocorrectionType = .no
+            }
+        }
+        let finish: (Bool) -> Void = { [weak alert] confirmed in
+            let value = alert?.textFields?.first?.text ?? ""
+            text = value
+            isPresented = false
+            context.coordinator.alert = nil
+            if confirmed { onConfirm(value) } else { onCancel() }
+        }
+        alert.addAction(UIAlertAction(title: AppLocalized("Cancel"), style: .cancel) { _ in finish(false) })
+        alert.addAction(UIAlertAction(title: confirmTitle, style: .default) { _ in finish(true) })
+        context.coordinator.alert = alert
+        DispatchQueue.main.async {
+            var presenter: UIViewController = host
+            while let next = presenter.presentedViewController { presenter = next }
+            presenter.present(alert, animated: true)
+        }
+    }
+}

@@ -126,11 +126,11 @@ struct RcloneAddServerView: View {
                     }
                 }
             }
-            .alert("New Folder", isPresented: $showNewFolder) {
-                TextField("Folder name", text: $newFolderName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button("Cancel", role: .cancel) { newFolderName = "" }
+            .minisTextFieldAlert("New Folder", isPresented: $showNewFolder,
+                                 text: $newFolderName, placeholder: "Folder name",
+                                 message: "Created inside \(displayPath).",
+                                 confirmTitle: "Create", autocapitalize: false,
+                                 onCancel: { newFolderName = "" }) { _ in
                 // [T-backup-newfolder-create-missing] NO `.disabled()` here.
                 // Alert buttons are not regular views: SwiftUI renders an
                 // alert's actions through UIAlertController, and a disabled
@@ -148,26 +148,19 @@ struct RcloneAddServerView: View {
                 // Empty input is rejected inside the action instead, where it
                 // costs nothing — createFolder() already trims and ignores a
                 // blank name.
-                Button("Create") { Task { await createFolder() } }
-            } message: {
-                Text("Created inside \(displayPath).")
+                Task { await createFolder() }
             }
             // [T-sftp-absolute-path] Go-to-path. No `.disabled()` on these
             // buttons: an alert's actions are UIAlertActions, and a disabled
             // one is omitted entirely rather than greyed out (that is what
             // removed the Create button in the New Folder dialog).
-            .alert("Go to Path", isPresented: $showPathEditor) {
-                TextField("Path", text: $pathInput)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button("Cancel", role: .cancel) { }
-                Button("Go") {
-                    let target = Self.normalizedInputPath(pathInput,
-                                                          isSFTP: RcloneBackendCatalog.usesAbsolutePaths(backend?.type ?? ""))
-                    Task { await list(dir: target) }
-                }
-            } message: {
-                Text("Type a folder path to jump straight to it, including one outside the starting directory.")
+            .minisTextFieldAlert("Go to Path", isPresented: $showPathEditor,
+                                 text: $pathInput, placeholder: "Path",
+                                 message: "Type a folder path to jump straight to it, including one outside the starting directory.",
+                                 confirmTitle: "Go", autocapitalize: false) { input in
+                let target = Self.normalizedInputPath(input,
+                                                      isSFTP: RcloneBackendCatalog.usesAbsolutePaths(backend?.type ?? ""))
+                Task { await list(dir: target) }
             }
         }
     }

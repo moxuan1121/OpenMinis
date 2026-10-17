@@ -212,13 +212,10 @@ struct ModelGroupsView: View {
         } message: { group in
             Text("Delete \"\(group.name)\"? Any default, voice, or vision selection pointing at this group will be cleared. The models themselves are not deleted.")
         }
-        .alert("New Group", isPresented: $showCreateGroup) {
-            TextField("Group name", text: $newGroupName)
-            Button("Create") { createGroup() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter a name for the new model group.")
-        }
+        .minisTextFieldAlert("New Group", isPresented: $showCreateGroup,
+                             text: $newGroupName, placeholder: "Group name",
+                             message: "Enter a name for the new model group.",
+                             confirmTitle: "Create") { _ in createGroup() }
     }
 
     // MARK: - Actions

@@ -70,14 +70,11 @@ struct BackupDestinationDetailView: View {
         // down with it — the sheet opened and then closed itself. Only
         // reproducible on FIRST entry, because that is when the load is still
         // in flight; afterwards the state had already settled.
-        .alert("Rename Destination", isPresented: $showRename) {
-            TextField("Name", text: $draftName)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            Button("Cancel", role: .cancel) {}
-            Button("Save") { if let r = activeRemote { rename(r) } }
-        } message: {
-            Text("Letters, numbers, - and _ only.")
+        .minisTextFieldAlert("Rename Destination", isPresented: $showRename,
+                             text: $draftName, placeholder: "Name",
+                             message: "Letters, numbers, - and _ only.",
+                             confirmTitle: "Save", autocapitalize: false) { _ in
+            if let r = activeRemote { rename(r) }
         }
         .sheet(isPresented: $showConnectionEditor) {
             if let r = activeRemote {
@@ -658,14 +655,12 @@ struct RcloneFolderBrowser: View {
                         .disabled(isListing)
                 }
             }
-            .alert("New Folder", isPresented: $showNewFolder) {
-                TextField("Folder name", text: $newFolderName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button("Cancel", role: .cancel) { newFolderName = "" }
-                Button("Create") { Task { await createFolder() } }
-            } message: {
-                Text("Created inside \(currentDir.isEmpty ? "/" : "/" + currentDir).")
+            .minisTextFieldAlert("New Folder", isPresented: $showNewFolder,
+                                 text: $newFolderName, placeholder: "Folder name",
+                                 message: "Created inside \(currentDir.isEmpty ? "/" : "/" + currentDir).",
+                                 confirmTitle: "Create", autocapitalize: false,
+                                 onCancel: { newFolderName = "" }) { _ in
+                Task { await createFolder() }
             }
             // Start where the destination currently points, so "change the
             // folder" begins from the folder in use rather than the root.

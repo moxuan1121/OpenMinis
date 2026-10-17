@@ -17,6 +17,13 @@ enum AnthropicModelsAPI {
         try await fetchWithFallback(credential: apiKey, baseURL: baseURL, appendV1Suffix: appendV1Suffix, forceRefresh: forceRefresh) { request in
             request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            // Relays (new-api / one-api and the like) authenticate `/v1/models`
+            // with `Authorization: Bearer` only and answer 401 to a bare
+            // x-api-key, so the list stayed empty while chat still worked.
+            // Never sent to api.anthropic.com, which rejects a Bearer API key.
+            if let base = baseURL, !base.isEmpty, !AnthropicProvider.isOfficialEndpoint(base), !apiKey.isEmpty {
+                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            }
             if let ua = userAgent { request.setValue(ua, forHTTPHeaderField: "User-Agent") }
         }
     }
@@ -111,8 +118,11 @@ enum AnthropicModelsAPI {
             throw LLMError.providerError(message: "Failed to fetch models (\(statusCode)): \(truncated)")
         }
 
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        guard let dataArray = json["data"] as? [[String: Any]] else {
+        // Anthropic and OpenAI-style relays return `{"data": [...]}`; some
+        // relays use `{"models": [...]}` or a bare array.
+        let parsed = try JSONSerialization.jsonObject(with: data)
+        let json = parsed as? [String: Any] ?? [:]
+        guard let dataArray = (json["data"] ?? json["models"] ?? parsed) as? [[String: Any]] else {
             throw LLMError.decodingError(underlying: NSError(domain: "ModelsAPI", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "Missing data array"]))
         }
@@ -124,7 +134,7 @@ enum AnthropicModelsAPI {
         }
 
         let raw = dataArray.compactMap { item -> LLMModel? in
-            guard let id = item["id"] as? String else { return nil }
+            guard let id = (item["id"] ?? item["name"]) as? String, !id.isEmpty else { return nil }
             // Anthropic format uses "display_name"; OpenAI-compatible proxies use "id" only
             let displayName = (item["display_name"] as? String) ?? modelDisplayName(from: id)
             return LLMModel(id: id, displayName: displayName, provider: "Anthropic")
